@@ -1,21 +1,10 @@
 from datetime import datetime
-from enum import Enum
 
 from sqlmodel import Field, SQLModel
 
 
-class PlaceType(str, Enum):
-    TOURIST = "TOURIST"
-    ACCOMMODATION = "ACCOMMODATION"
-
-
 class ReviewBase(SQLModel):
-    place_type: PlaceType = Field(
-        nullable=False,
-        index=True,
-    )
-
-    # JSON의 contentid
+    # JSON의 contentid (관광지/숙소 구분 없이 전역에서 고유한 값)
     place_id: str = Field(
         nullable=False,
         index=True,

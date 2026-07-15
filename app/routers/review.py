@@ -5,7 +5,6 @@ from sqlmodel import Session, select
 
 from app.database import get_session
 from app.models.review import (
-    PlaceType,
     Review,
     ReviewCreate,
     ReviewDelete,
@@ -43,14 +42,10 @@ def create_review(
     response_model=list[ReviewRead],
 )
 def get_reviews(
-    place_type: PlaceType | None = None,
     place_id: str | None = None,
     session: Session = Depends(get_session),
 ):
     query = select(Review)
-
-    if place_type is not None:
-        query = query.where(Review.place_type == place_type)
 
     if place_id is not None:
         query = query.where(Review.place_id == place_id)

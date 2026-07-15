@@ -8,6 +8,7 @@ from app.models import Review
 from app.routers.accommodation import router as accommodation_router
 from app.routers.review import router as review_router
 from app.routers.tourist_spot import router as tourist_spot_router
+from app.routers.chat import router as chat_router
 
 
 @asynccontextmanager
@@ -34,6 +35,7 @@ app.add_middleware(
 app.include_router(tourist_spot_router)
 app.include_router(accommodation_router)
 app.include_router(review_router)
+app.include_router(chat_router)
 
 
 @app.get("/")
