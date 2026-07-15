@@ -1,12 +1,6 @@
-from pathlib import Path
-
 from sqlmodel import Session, SQLModel, create_engine
 
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-DATABASE_PATH = BASE_DIR / "localhub.db"
-
-DATABASE_URL = f"sqlite:///{DATABASE_PATH}"
+from app.core.config import DATABASE_URL
 
 
 engine = create_engine(

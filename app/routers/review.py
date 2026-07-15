@@ -1,16 +1,17 @@
-from datetime import datetime
-
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import Session, select
+from sqlmodel import Session
 
+from app import crud
 from app.database import get_session
-from app.models.review import (
-    Review,
+from app.models.review import Review
+from app.schemas.review import (
     ReviewCreate,
     ReviewDelete,
+    ReviewListResponse,
     ReviewRead,
     ReviewUpdate,
 )
+from app.services import review_service
 
 
 router = APIRouter(
@@ -30,31 +31,20 @@ def create_review(
 ):
     review = Review.model_validate(review_in)
 
-    session.add(review)
-    session.commit()
-    session.refresh(review)
-
-    return review
+    return crud.review.create_review(session, review)
 
 
 @router.get(
     "",
-    response_model=list[ReviewRead],
+    response_model=ReviewListResponse,
 )
 def get_reviews(
     place_id: str | None = None,
     session: Session = Depends(get_session),
 ):
-    query = select(Review)
+    reviews = crud.review.get_reviews(session, place_id=place_id)
 
-    if place_id is not None:
-        query = query.where(Review.place_id == place_id)
-
-    query = query.order_by(Review.created_at.desc())
-
-    reviews = session.exec(query).all()
-
-    return reviews
+    return review_service.build_list_response(reviews)
 
 
 @router.get(
@@ -65,7 +55,7 @@ def get_review(
     review_id: int,
     session: Session = Depends(get_session),
 ):
-    review = session.get(Review, review_id)
+    review = crud.review.get_review(session, review_id)
 
     if review is None:
         raise HTTPException(
@@ -85,7 +75,7 @@ def update_review(
     review_in: ReviewUpdate,
     session: Session = Depends(get_session),
 ):
-    review = session.get(Review, review_id)
+    review = crud.review.get_review(session, review_id)
 
     if review is None:
         raise HTTPException(
@@ -93,27 +83,11 @@ def update_review(
             detail="리뷰를 찾을 수 없습니다.",
         )
 
-    if review.password != review_in.password:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="비밀번호가 일치하지 않습니다.",
-        )
+    review_service.verify_owner(review, review_in.password)
 
-    update_data = review_in.model_dump(
-        exclude={"password"},
-        exclude_unset=True,
-    )
+    review = review_service.apply_update(review, review_in)
 
-    for key, value in update_data.items():
-        setattr(review, key, value)
-
-    review.updated_at = datetime.now()
-
-    session.add(review)
-    session.commit()
-    session.refresh(review)
-
-    return review
+    return crud.review.save_review(session, review)
 
 
 @router.delete(
@@ -125,7 +99,7 @@ def delete_review(
     review_in: ReviewDelete,
     session: Session = Depends(get_session),
 ):
-    review = session.get(Review, review_id)
+    review = crud.review.get_review(session, review_id)
 
     if review is None:
         raise HTTPException(
@@ -133,13 +107,8 @@ def delete_review(
             detail="리뷰를 찾을 수 없습니다.",
         )
 
-    if review.password != review_in.password:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="비밀번호가 일치하지 않습니다.",
-        )
+    review_service.verify_owner(review, review_in.password)
 
-    session.delete(review)
-    session.commit()
+    crud.review.delete_review(session, review)
 
     return None

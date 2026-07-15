@@ -4,6 +4,8 @@ from sqlmodel import Field, SQLModel
 
 
 class ReviewBase(SQLModel):
+    """DB 테이블과 요청/응답 스키마가 공통으로 사용하는 필드."""
+
     # JSON의 contentid (관광지/숙소 구분 없이 전역에서 고유한 값)
     place_id: str = Field(
         nullable=False,
@@ -63,33 +65,3 @@ class Review(ReviewBase, table=True):
         default_factory=datetime.now,
         nullable=False,
     )
-
-
-class ReviewCreate(ReviewBase):
-    """리뷰 생성 요청 바디. password 포함."""
-
-    password: str = Field(nullable=False, max_length=100)
-
-
-class ReviewUpdate(SQLModel):
-    """리뷰 수정 요청 바디. password는 필수, 나머지는 선택."""
-
-    password: str
-
-    rating: int | None = Field(default=None, ge=1, le=5)
-    review_title: str | None = Field(default=None, max_length=200)
-    content: str | None = None
-
-
-class ReviewDelete(SQLModel):
-    """리뷰 삭제 요청 바디."""
-
-    password: str
-
-
-class ReviewRead(ReviewBase):
-    """응답으로 내려줄 스키마. password는 절대 포함하지 않는다."""
-
-    id: int
-    created_at: datetime
-    updated_at: datetime
