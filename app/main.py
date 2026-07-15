@@ -10,6 +10,7 @@ from app.routers.accommodation import router as accommodation_router
 from app.routers.review import router as review_router
 from app.routers.tourist_spot import router as tourist_spot_router
 from app.routers.chat import router as chat_router
+from app.routers.place_search import router as place_search_router
 
 
 @asynccontextmanager
@@ -37,7 +38,7 @@ app.include_router(tourist_spot_router)
 app.include_router(accommodation_router)
 app.include_router(review_router)
 app.include_router(chat_router)
-
+app.include_router(place_search_router)
 
 @app.get("/")
 def root():
