@@ -1,6 +1,4 @@
-.env
-__pycache__/
-*.pyc
-localhub.db
-.venv/
-venv/
+Lib/
+Scripts/
+Include/
+pyvenv.cfg
