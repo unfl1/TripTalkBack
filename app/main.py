@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.database import create_db_and_tables
 from app.models import Review
 from app.routers.accommodation import router as accommodation_router
+from app.routers.review import router as review_router
 from app.routers.tourist_spot import router as tourist_spot_router
 
 
@@ -32,6 +33,7 @@ app.add_middleware(
 
 app.include_router(tourist_spot_router)
 app.include_router(accommodation_router)
+app.include_router(review_router)
 
 
 @app.get("/")
