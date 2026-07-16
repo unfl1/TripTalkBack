@@ -9,7 +9,7 @@ from app.services.place_loader import load_places
 
 # 형태소 분석기는 초기화 비용이 있어 모듈 로드 시 한 번만 생성해서 재사용한다.
 # (LLM/임베딩 모델과 달리 순수 규칙 기반 분석기라 매 요청마다 돌려도 서버 부담이 크지 않다)
-_kiwi = Kiwi()
+_kiwi = Kiwi(num_workers=1)
 
 # 검색어로 의미 없는 일반 의존명사 (필터링 안 하면 거의 모든 장소가 매칭되어버림)
 _GENERIC_NOUNS = {"것", "거", "곳", "데", "쪽", "편", "수", "때"}
