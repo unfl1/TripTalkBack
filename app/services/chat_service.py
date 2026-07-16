@@ -1,4 +1,5 @@
-from kiwipiepy import Kiwi
+import re
+
 from sqlmodel import Session, func, select
 
 from app.core.config import ACCOMMODATION_FILE_PATH, TOURIST_FILE_PATH
@@ -7,12 +8,14 @@ from app.schemas.chat import ChatPlaceResult, ChatResponse
 from app.services.place_loader import load_places
 
 
-# 형태소 분석기는 초기화 비용이 있어 모듈 로드 시 한 번만 생성해서 재사용한다.
-# (LLM/임베딩 모델과 달리 순수 규칙 기반 분석기라 매 요청마다 돌려도 서버 부담이 크지 않다)
-_kiwi = Kiwi(num_workers=1)
-
 # 검색어로 의미 없는 일반 의존명사 (필터링 안 하면 거의 모든 장소가 매칭되어버림)
 _GENERIC_NOUNS = {"것", "거", "곳", "데", "쪽", "편", "수", "때"}
+
+# 형태소 분석기 없이 흔한 조사만 뒤에서 잘라내는 단순 규칙.
+# (kiwipiepy 대신 사용 - 메모리 사용량 절감이 목적. 복잡한 문장에서는 정확도가 다소 떨어질 수 있음)
+_JOSA_PATTERN = re.compile(
+    r"(에서는|에서|에게|에는|으로는|으로|에|의|을|를|은|는|이|가|과|와|도)$"
+)
 
 
 # ---------------------------------------------------------------------------
@@ -42,22 +45,22 @@ STOPWORDS = set(
 
 
 def _tokenize(message: str) -> list[str]:
-    """형태소 분석으로 명사만 뽑아 검색어로 사용한다.
+    """공백으로 나눈 뒤 흔한 조사만 뒤에서 잘라내 검색어 후보를 만든다.
 
-    공백 기준 분리 대신 형태소 분석을 쓰는 이유:
-    - "강남에서" 같이 조사가 붙은 표현도 "강남"(명사) + "에서"(조사)로 분리되어
-      실제 데이터(주소 "강남구" 등)와 정상적으로 매칭된다.
-    - "안녕", "높은"처럼 명사가 아닌 감탄사/형용사는 애초에 검색어로 뽑히지 않아
-      의도치 않은 매칭(예: "안녕" -> "안녕인사동")이 줄어든다.
+    형태소 분석기(kiwipiepy) 없이 동작하도록 단순화한 버전.
+    "강남에서" -> "강남", "경복궁은" -> "경복궁" 처럼 흔한 케이스는 잡아내지만,
+    불규칙 활용이나 복잡한 문장 구조는 완벽히 처리하지 못할 수 있다.
     """
 
-    nouns = [
-        token.form
-        for token in _kiwi.tokenize(message)
-        if token.tag in ("NNG", "NNP")
-    ]
+    raw_tokens = re.split(r"\s+", message.strip())
 
-    return [n for n in nouns if n not in STOPWORDS and n not in _GENERIC_NOUNS]
+    tokens = []
+    for tok in raw_tokens:
+        stripped = _JOSA_PATTERN.sub("", tok)
+        if stripped and stripped not in STOPWORDS and stripped not in _GENERIC_NOUNS:
+            tokens.append(stripped)
+
+    return tokens
 
 
 def _load_rating_stats(session: Session) -> dict[str, tuple[float | None, int]]:
@@ -152,16 +155,13 @@ def build_chat_response(session: Session, message: str) -> ChatResponse:
         fallback_used = True
 
     # 3. 평점 붙이기 -> (필요하면) 정렬 -> 그 다음에 상위 10개로 자르기.
-    #    예전엔 "10개로 자른 뒤 정렬"이라 정렬 대상 자체가 잘못된 채였음.
     rating_stats = _load_rating_stats(session)
     scored = [_to_result(place, rating_stats) for place in matched]
 
     if wants_rating_sort and not fallback_used:
         if wants_low_rating:
-            # 평점 낮은 순 (리뷰 없는 곳은 맨 뒤)
             scored.sort(key=lambda r: (r.avg_rating is None, r.avg_rating if r.avg_rating is not None else 0))
         else:
-            # 평점 높은 순 (리뷰 없는 곳은 맨 뒤) - 기본값
             scored.sort(key=lambda r: (r.avg_rating is None, -(r.avg_rating or 0)))
 
     results = scored[:10]
